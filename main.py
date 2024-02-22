@@ -1,50 +1,45 @@
+# main.py
+
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 from typing import List, Optional
 
+# SQLAlchemy models
+DATABASE_URL = "postgresql://username:kkasanacoder@hostname:port/postgres"
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(String, index=True)
+
+Base.metadata.create_all(bind=engine)
+
+# FastAPI app
 app = FastAPI()
 
-class Book(BaseModel):
-    id: int
-    title: str
-    author: str
-    year: int
-    pages: int
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# Dummy data
-books_db = [
-    {"id": 1, "title": "Harry Potter", "author": "J.K. Rowling", "year": 1997, "pages": 332},
-    {"id": 2, "title": "The Hobbit", "author": "J.R.R. Tolkien", "year": 1937, "pages": 310},
-]
+@app.post("/products/", response_model=Product)
+def create_product(product: ProductCreate, db: Session = Depends(get_db)):
+    db_product = Product(**product.dict())
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    return db_product
 
-@app.get("/books/", response_model=List[Book])
-async def get_books():
-    return books_db
+# Implement other CRUD APIs (GET, PUT, DELETE) similarly
 
-@app.get("/books/{book_id}", response_model=Book)
-async def get_book(book_id: int):
-    for book in books_db:
-        if book["id"] == book_id:
-            return book
-    raise HTTPException(status_code=404, detail="Book not found")
-
-@app.post("/books/", response_model=Book)
-async def create_book(book: Book):
-    books_db.append(book.dict())
-    return book
-
-@app.put("/books/{book_id}", response_model=Book)
-async def update_book(book_id: int, book: Book):
-    for b in books_db:
-        if b["id"] == book_id:
-            b.update(book.dict())
-            return book
-    raise HTTPException(status_code=404, detail="Book not found")
-
-@app.delete("/books/{book_id}", response_model=Book)
-async def delete_book(book_id: int):
-    for i, book in enumerate(books_db):
-        if book["id"] == book_id:
-            del books_db[i]
-            return book
-    raise HTTPException(status_code=404, detail="Book not found")
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
