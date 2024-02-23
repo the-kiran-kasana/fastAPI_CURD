@@ -1,3 +1,4 @@
+
 # main.py
 
 from fastapi import FastAPI, HTTPException
@@ -99,13 +100,14 @@ async def delete_item_api(item_id: int):
     return {"message": "Item deleted successfully"}
 
 
-# # Initialize the connection pool when the app starts
-# @app.on_event("startup")
-# async def startup():
-#     await create_pool()
+# Initialize the connection pool when the app starts
+@app.on_event("startup")
+async def startup():
+    await create_pool()
 
 
-# # Close the connection pool when the app stops
-# @app.on_event("shutdown")
-# async def shutdown():
-#     await pool.close()
+# Close the connection pool when the app stops
+@app.on_event("shutdown")
+async def shutdown():
+    await pool.close()
+
